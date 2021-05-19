@@ -1,4 +1,4 @@
-#+title: elisp-libs
+#+title: git link walk through
 #+roam_tags: elisp package
 * git-link
 ** [[https://github.com/sshaw/git-link][github link]]
