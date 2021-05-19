@@ -1,12 +1,17 @@
-#+title: git link walk through
-#+roam_tags: elisp package
+#+title: git-link walk through
+
 * git-link
-** [[https://github.com/sshaw/git-link][github link]]
-** [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Autoload.html][autoload]], as if the whole file has been loaded all along.
-three autoload functions
-*** (defun git-link (remote start end)
-*** (defun git-link-commit (remote)
-*** (defun git-link-homepage (remote)
+** [[https://github.com/sshaw/git-link][github link to the package]]
+** [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Autoload.html][autoload]] -  maker that exports functions and fake the behavior as if the whole file has been loaded all along.
+three are three  autoload functions in git-link
+#+begin_src elisp
+;;;###autoload
+(defun git-link (remote start end) ;; link from file
+;;;###autoload
+(defun git-link-commit (remote) ;; link commit ?
+;;;###autoload
+(defun git-link-homepage (remote) ;; link to homepage.
+#+end_src
 ** git-link-homepage
 *** interactive
 It may be a Lisp expression that is not a string; then it should be a form that is evaluated to get a list of arguments to pass to the command.
