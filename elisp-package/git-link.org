@@ -2,7 +2,7 @@
 
 * git-link
 ** [[https://github.com/sshaw/git-link][github link to the package]]
-** background
+** A little background
 I use this package daily at work to get the github url of the file + line number at point.
 ** [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Autoload.html][autoload]] -  maker that exports functions and fake the behavior as if the whole file has been loaded.
 three are three  autoload functions in git-link
@@ -15,6 +15,9 @@ three are three  autoload functions in git-link
 (defun git-link-homepage (remote) ;; link to homepage.
 #+end_src
 ** git-link-homepage
+This method jumps to the github homepage of the current git project.
+
+I set =(setq git-link-open-in-browser t)= so that this funtion jumps to chrome.
 *** interactive
 It may be a Lisp expression that is not a string; then it should be a form that is evaluated to get a list of arguments to pass to the command.
 #+begin_src elisp
