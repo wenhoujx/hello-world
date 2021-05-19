@@ -19,10 +19,12 @@ This method jumps to the github homepage of the current git project.
 
 I set =(setq git-link-open-in-browser t)= so that this funtion jumps to chrome.
 *** interactive
-It may be a Lisp expression that is not a string; then it should be a form that is evaluated to get a list of arguments to pass to the command.
+
 #+begin_src elisp
 (interactive (list (git-link--select-remote)))
 #+end_src
+- it's usually a string, but it  may be a Lisp expression that is not a string; then it should be a form that is evaluated to get a list of arguments to pass to the command.
+- it's as if calling this function in java or clang style: =git-link-homepage(...)= where =...= is the computed =list=
 *** git-link--remote-url
 #+begin_src elisp
 (git-link--remote-url "origin")
