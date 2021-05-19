@@ -1,0 +1,79 @@
+#+title: elisp-libs
+#+roam_tags: elisp package
+* git-link
+** [[https://github.com/sshaw/git-link][github link]]
+** [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Autoload.html][autoload]], as if the whole file has been loaded all along.
+three autoload functions
+*** (defun git-link (remote start end)
+*** (defun git-link-commit (remote)
+*** (defun git-link-homepage (remote)
+** git-link-homepage
+*** interactive
+It may be a Lisp expression that is not a string; then it should be a form that is evaluated to get a list of arguments to pass to the command.
+#+begin_src elisp
+(interactive (list (git-link--select-remote)))
+#+end_src
+*** git-link--remote-url
+#+begin_src elisp
+(git-link--remote-url "origin")
+(git-link--parse-remote (git-link--remote-url "origin"))
+#+end_src
+*** git-link--select-remote
+either read or compute
+**** git-link--read-remote
+***** git-link--remote
+#+begin_src elisp
+(git-link--current-branch)
+(git-link--branch-remote "master")
+(git-link--get-config (format "branch.%s.remote" "master"))
+#+end_src
+
+#+begin_src sh
+git config --get "branch.master.remote"
+# origin
+#+end_src
+
+***** git-link--remotes
+#+begin_src elisp
+(git-link--exec "remote")
+#+end_src
+****** git-link--exec
+run a git command
+run process and print output to a buffer.
+- zerop to check process output
+- use apply b/c a dynamic list of args, [[https://stackoverflow.com/questions/3862394/when-do-you-use-apply-and-when-funcall][as long as the last parameter is a list]].
+#+begin_src elisp
+(zerop (apply #'process-file "git" nil (current-buffer) nil args))
+#+end_src
+
+try out this, make sure you run this in a file that's git controlled.
+
+should see the same as if you run =git remote=
+#+begin_src elisp
+(let ((buf (get-buffer-create "test-1")))
+  (switch-to-buffer buf)
+  (process-file "git" nil (current-buffer) nil "remote"))
+#+end_src
+***** completing-read
+#+begin_src elisp
+(completing-read "Pick one: "
+		     '(a b c) ;; collection
+		     nil ;; predicate
+		     t ;; must match one
+		     "" ;; initial input
+		     nil ;; hist
+		     "b")
+#+end_src
+
+*** cadr
+#+begin_src elisp
+(car '(0 1 2))
+(cdr '(0 1 2))
+(cadr '(0 1 2))
+#+end_src
+
+*** git-link--new
+#+begin_src elisp
+(message "test%20") ;; error
+(message "test%%20") ;; single %
+#+end_src
