@@ -2,13 +2,15 @@
 
 * git-link
 ** [[https://github.com/sshaw/git-link][github link to the package]]
-** [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Autoload.html][autoload]] -  maker that exports functions and fake the behavior as if the whole file has been loaded all along.
+** background
+I use this package daily at work to get the github url of the file + line number at point.
+** [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Autoload.html][autoload]] -  maker that exports functions and fake the behavior as if the whole file has been loaded.
 three are three  autoload functions in git-link
 #+begin_src elisp
 ;;;###autoload
-(defun git-link (remote start end) ;; link from file
+(defun git-link (remote start end) ;; link to file
 ;;;###autoload
-(defun git-link-commit (remote) ;; link commit ?
+(defun git-link-commit (remote) ;; link to commit
 ;;;###autoload
 (defun git-link-homepage (remote) ;; link to homepage.
 #+end_src
