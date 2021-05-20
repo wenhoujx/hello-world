@@ -1,29 +1,30 @@
 # Table of Contents
 
-1.  [git-link](#orgc610736)
-    1.  [github link to the package](#org6dbcbff)
-    2.  [A little background](#org31f7e38)
-    3.  [Top Down Entrypoints](#org5cd9c74)
-    4.  [Bottom up arch](#org5a6e683)
-        1.  [The ABSOLUTE bottom: git-link&#x2013;exec](#orgb4ef13c)
-    5.  [one entry: git-link-homepage](#org96d1531)
-        1.  [interactive with a list.](#org5a078a6)
-        2.  [git-link&#x2013;select-remote](#org9e2a296)
-        3.  [cadr](#orgfebdae6)
-        4.  [git-link&#x2013;new](#org2157121)
-    6.  [git-link&#x2013;handler](#orgd0bd411)
+1.  [git-link](#org148f832)
+    1.  [github link to the package](#org3e16757)
+    2.  [A little background](#orgfdce510)
+    3.  [Top Down Entrypoints](#org3cae6a1)
+    4.  [Bottom up arch](#org9efa0bd)
+        1.  [The ABSOLUTE bottom: git-link&#x2013;exec](#orgd76b738)
+    5.  [one entry: git-link-homepage](#org9ef3740)
+        1.  [interactive with a list.](#org04d362c)
+        2.  [git-link&#x2013;select-remote](#org553314c)
+        3.  [cadr](#org3a82b95)
+        4.  [git-link&#x2013;new](#orge4fee61)
+    6.  [git-link&#x2013;handler](#org806b603)
+    7.  [Fun Extension](#org6f97241)
 
-<a id="orgc610736"></a>
+<a id="org148f832"></a>
 
 # git-link
 
-<a id="org6dbcbff"></a>
+<a id="org3e16757"></a>
 
 ## [github link to the package](https://github.com/sshaw/git-link)
 
 Or you can always use `M-x find-library` or `C-h f git-link` to jump to the library
 
-<a id="org31f7e38"></a>
+<a id="orgfdce510"></a>
 
 ## A little background
 
@@ -31,7 +32,7 @@ I use this package daily at work to get the github url of the file + line number
 
 This is walkthrough is by no means exhastive, i already have some elisp and programming experience, but not an expert. I write down things that i am not familiar or have to check out during my reading of the library.
 
-<a id="org5cd9c74"></a>
+<a id="org3cae6a1"></a>
 
 ## Top Down Entrypoints
 
@@ -48,7 +49,7 @@ there are three autoload functions in git-link
 
 ![img](./pngs/top-down.png)
 
-<a id="org5a6e683"></a>
+<a id="org9efa0bd"></a>
 
 ## Bottom up arch
 
@@ -70,7 +71,7 @@ Depending on where you call the commands, the `default-directory` is automatical
 
 ![img](./pngs/bottom-up.png)
 
-<a id="orgb4ef13c"></a>
+<a id="orgd76b738"></a>
 
 ### The ABSOLUTE bottom: git-link&#x2013;exec
 
@@ -111,7 +112,7 @@ This function is the interface with git command.
           (switch-to-buffer buf)
           (process-file "git" nil (current-buffer) nil "remote"))
 
-<a id="org96d1531"></a>
+<a id="org9ef3740"></a>
 
 ## one entry: git-link-homepage
 
@@ -135,7 +136,7 @@ I set `(setq git-link-open-in-browser t)` so that this funtion jumps to chrome.
     	(git-link--new (format "https://%s/%s" base (cadr remote-info)))
           (error  "Remote `%s' is unknown or contains an unsupported URL" remote))))
 
-<a id="org5a078a6"></a>
+<a id="org04d362c"></a>
 
 ### interactive with a list.
 
@@ -146,7 +147,7 @@ I set `(setq git-link-open-in-browser t)` so that this funtion jumps to chrome.
 - `(interactive ...)` is usually a string, but it may be a Lisp expression that is not a string; then it should be a form that is evaluated to get a list of arguments to pass to the command.
 - It&rsquo;s as if calling this function in java or clang style: `git-link-homepage(...)` where `...` is the computed `list` of args.
 
-<a id="org9e2a296"></a>
+<a id="org553314c"></a>
 
 ### git-link&#x2013;select-remote
 
@@ -224,7 +225,7 @@ either read or compute the remote, e.g. `origin`
                 		     nil ;; hist
                 		     "b")
 
-<a id="orgfebdae6"></a>
+<a id="org3a82b95"></a>
 
 ### cadr
 
@@ -232,7 +233,7 @@ either read or compute the remote, e.g. `origin`
     (cdr '(0 1 2))
     (cadr '(0 1 2))
 
-<a id="org2157121"></a>
+<a id="orge4fee61"></a>
 
 ### git-link&#x2013;new
 
@@ -241,7 +242,7 @@ there is a trick to use not error out on string that contains `%`
     (message "test%20") ;; error
     (message "test%%20") ;; single %
 
-<a id="orgd0bd411"></a>
+<a id="org806b603"></a>
 
 ## git-link&#x2013;handler
 
@@ -285,3 +286,33 @@ invocations of `git-link--handler`
         ("sourcegraph" git-link-commit-sourcegraph))
 
 by calling `(git-link--handler git-link-remote-alist "github")` we get `git-link-github` that given `hostname dirname filename branch commit line-start line-end` will return a git url we can jump to in browser.
+
+<a id="org6f97241"></a>
+
+## Fun Extension
+
+A typical git workflow is to work on a local branch off `origin/develop`, commit, push then go to github to create a PR.
+
+The following function helps me to create the PR or jump to existing PR of the current branch.
+
+Note i only work on github so have no idea if this works on gitbucket or gitlab or &#x2026;
+
+    (require 'git-link)
+    (defun my/goto-github-pr (remote)
+      "Create a url for current branch PR.
+    The URL will be added to the kill ring.  If `git-link-open-in-browser'
+    is non-nil also call `browse-url'."
+      (interactive (list (git-link--select-remote)))
+      (let* ((remote-url (git-link--remote-url remote))
+             (remote-info (when remote-url (git-link--parse-remote remote-url)))
+             (base (car remote-info))
+             (branch (git-link--current-branch)))
+
+        (if remote-info
+    	(git-link--new (format "https://%s/%s/pull/%s" base (cadr remote-info) branch))
+          (error  "Remote `%s' is unknown or contains an unsupported URL" remote))))
+
+Now i can commit, push with `magit` and `M-x my/goto-github-pr` to go to the PR in github
+
+- if the PR already exist, the generated url lands in the PR.
+- if the PR doesn&rsquo;t exist, it creates a url that leads to PR creation page. This works b/c a github feature that if you go to a url in the format &ldquo;<https://github.com/><org>/<repo>/pull/<branch-name>&rdquo; it lands in a PR creation page if the PR doesn&rsquo;t exist.
