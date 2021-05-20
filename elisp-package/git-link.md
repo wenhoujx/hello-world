@@ -1,37 +1,43 @@
 # Table of Contents
 
-1.  [git-link](#orgcc6c70d)
-    1.  [github link to the package](#orgd5dae9e)
-    2.  [A little background](#orga35bc2a)
-    3.  [autoload - maker that exports functions and fake the behavior as if the whole file has been loaded.](#org9e566be)
-    4.  [Source of truth about git](#org0bee833)
-        1.  [git-link&#x2013;exec](#orgd7dd206)
-    5.  [git-link-homepage](#org20fe842)
-        1.  [interactive](#org08a51c3)
-        2.  [git-link&#x2013;select-remote](#orgdb014d2)
-        3.  [git-link&#x2013;remote-url](#orge7aaea7)
-        4.  [cadr](#orgf8b80bd)
-        5.  [git-link&#x2013;new](#orgcf5d34b)
+1.  [git-link](#orgc610736)
+    1.  [github link to the package](#org6dbcbff)
+    2.  [A little background](#org31f7e38)
+    3.  [Top Down Entrypoints](#org5cd9c74)
+    4.  [Bottom up arch](#org5a6e683)
+        1.  [The ABSOLUTE bottom: git-link&#x2013;exec](#orgb4ef13c)
+    5.  [one entry: git-link-homepage](#org96d1531)
+        1.  [interactive with a list.](#org5a078a6)
+        2.  [git-link&#x2013;select-remote](#org9e2a296)
+        3.  [cadr](#orgfebdae6)
+        4.  [git-link&#x2013;new](#org2157121)
+    6.  [git-link&#x2013;handler](#orgd0bd411)
 
-<a id="orgcc6c70d"></a>
+<a id="orgc610736"></a>
 
 # git-link
 
-<a id="orgd5dae9e"></a>
+<a id="org6dbcbff"></a>
 
 ## [github link to the package](https://github.com/sshaw/git-link)
 
-<a id="orga35bc2a"></a>
+Or you can always use `M-x find-library` or `C-h f git-link` to jump to the library
+
+<a id="org31f7e38"></a>
 
 ## A little background
 
 I use this package daily at work to get the github url of the file + line number at point.
 
-<a id="org9e566be"></a>
+This is walkthrough is by no means exhastive, i already have some elisp and programming experience, but not an expert. I write down things that i am not familiar or have to check out during my reading of the library.
 
-## [autoload](https://www.gnu.org/software/emacs/manual/html_node/elisp/Autoload.html) - maker that exports functions and fake the behavior as if the whole file has been loaded.
+<a id="org5cd9c74"></a>
 
-three are three autoload functions in git-link
+## Top Down Entrypoints
+
+look for [autoload](https://www.gnu.org/software/emacs/manual/html_node/elisp/Autoload.html) - this auto exports functions and fake the behavior as if the whole file has been loaded. The file is actually loaded for the first time when you invoke the function.
+
+there are three autoload functions in git-link
 
     ;;;###autoload
     (defun git-link (remote start end) ;; link to file
@@ -40,15 +46,35 @@ three are three autoload functions in git-link
     ;;;###autoload
     (defun git-link-homepage (remote) ;; link to homepage.
 
-<a id="org0bee833"></a>
+![img](./pngs/top-down.png)
 
-## Source of truth about git
+<a id="org5a6e683"></a>
 
-This package eventually calls a set of `git` commands to get the information. Depending on where you call the commands, the `default-directory` is automatically set as the working directory.
+## Bottom up arch
 
-<a id="orgd7dd206"></a>
+These autoload commands are ultimately powered by `git` commands.
 
-### git-link&#x2013;exec
+Depending on where you call the commands, the `default-directory` is automatically set as the working directory.
+
+`git-link` has the following relatively low level (close to git) functions:
+
+- (defun git-link&#x2013;exec(&rest args)
+- (defun git-link&#x2013;get-config (name)
+- (defun git-link&#x2013;remotes ()
+- (defun git-link&#x2013;last-commit ()
+- (defun git-link&#x2013;commit ()
+- (defun git-link&#x2013;current-branch ()
+- (defun git-link&#x2013;repo-root ()
+- (defun git-link&#x2013;remote-url (name)
+- (defun git-link&#x2013;branch-remote (branch)
+
+![img](./pngs/bottom-up.png)
+
+<a id="orgb4ef13c"></a>
+
+### The ABSOLUTE bottom: git-link&#x2013;exec
+
+This function is the interface with git command.
 
     (defun git-link--exec(&rest args)
       (ignore-errors
@@ -61,47 +87,66 @@ This package eventually calls a set of `git` commands to get the information. De
                               (line-end-position))
                      do (forward-line 1))))))
 
-1.  ignore-errors
+1.  [`ignore-errors`](https://www.gnu.org/software/emacs/manual/html_node/elisp/Handling-Errors.html)
 
-    returns nil when encounter exception
+    Returns nil when encounter exception.
 
-2.  process-file function
+2.  `process-file` function
 
     This function runs a git command and print output into a buffer
 
     - zerop to check exit code is 0 (success), which is [bash convention](https://tldp.org/LDP/abs/html/exit-status.html).
     - use apply instead of call `process-file` directly b/c the dynamic list of args, [as long as the last parameter is a list](https://stackoverflow.com/questions/3862394/when-do-you-use-apply-and-when-funcall).
-    - cl-loop collects the output into a list
+    - cl-loop collects the output into a list.
+    - use `buffer-substring-no-properties` if you are ONLY interested in the text.
 
-3.  example
+3.  examples
 
-        ;; this is the same output as git link and collect each line of output as element in a list.
+        ;; this is the same output as =git remote= and collect each line of output as element in a list.
         (git-link--exec "remote") ;; => ("origin") since i only have one remote
 
-    try out process-file function, this `C-c C-c` should switch you to a buffer with the output of &ldquo;git remote&rdquo;, make sure this is invoked in a git project.
+    Try out process-file function, this `C-c C-c` should switch you to a buffer `test-1` with the output of &ldquo;git remote&rdquo;, make sure invoke this in a git project.
 
         (let ((buf (get-buffer-create "test-1")))
           (switch-to-buffer buf)
           (process-file "git" nil (current-buffer) nil "remote"))
 
-<a id="org20fe842"></a>
+<a id="org96d1531"></a>
 
-## git-link-homepage
+## one entry: git-link-homepage
 
 This method jumps to the github homepage of the current git project.
 
 I set `(setq git-link-open-in-browser t)` so that this funtion jumps to chrome.
 
-<a id="org08a51c3"></a>
+    ;;;###autoload
+    (defun git-link-homepage (remote)
+      "Create a URL for the current buffer's REMOTE repository homepage.
+    The URL will be added to the kill ring.  If `git-link-open-in-browser'
+    is non-nil also call `browse-url'."
 
-### interactive
+      (interactive (list (git-link--select-remote)))
+      (let* ((remote-url (git-link--remote-url remote))
+             (remote-info (when remote-url (git-link--parse-remote remote-url)))
+             (base (car remote-info)))
+    ...
+        (if remote-info
+    	;;TODO: shouldn't assume https, need service specific handler like others
+    	(git-link--new (format "https://%s/%s" base (cadr remote-info)))
+          (error  "Remote `%s' is unknown or contains an unsupported URL" remote))))
+
+<a id="org5a078a6"></a>
+
+### interactive with a list.
 
     (interactive (list (git-link--select-remote)))
 
-- it&rsquo;s usually a string, but it may be a Lisp expression that is not a string; then it should be a form that is evaluated to get a list of arguments to pass to the command.
-- it&rsquo;s as if calling this function in java or clang style: `git-link-homepage(...)` where `...` is the computed `list` of args.
+- interactive makes this function a command, i.e. it shows up in `M-x`
+- either invoke this function programatically or interactively, in the later case the `(interactive ...)` block is responsible to fill in the argument(s).
+- `(interactive ...)` is usually a string, but it may be a Lisp expression that is not a string; then it should be a form that is evaluated to get a list of arguments to pass to the command.
+- It&rsquo;s as if calling this function in java or clang style: `git-link-homepage(...)` where `...` is the computed `list` of args.
 
-<a id="orgdb014d2"></a>
+<a id="org9e2a296"></a>
 
 ### git-link&#x2013;select-remote
 
@@ -112,14 +157,51 @@ either read or compute the remote, e.g. `origin`
           (git-link--read-remote) ;; read remote from prompt
         (git-link--remote))) ;; compute the default remote
 
-1.  git-link&#x2013;read-remote
+1.  git-link&#x2013;remote
 
-        (defun git-link--read-remote ()
-          (let ((remotes (git-link--remotes))
-        	(current (git-link--remote)))
-        ...)
+    This function invokes other lower level functions to figure out the current branch, the current remote or fall back to the remote of master branch.
 
-    1.  git-link&#x2013;remote
+        (defun git-link--remote ()
+          (let* ((branch (git-link--current-branch))
+        	 (remote (or (git-link--get-config "git-link.remote")
+        		     git-link-default-remote
+        		     (git-link--branch-remote branch))))
+
+            ;; Git defaults to "." if the branch has no remote.
+            ;; If the branch has no remote we try master's, which may be set.
+            (if (or (null remote)
+        	    (and (string= remote ".")
+        		 (not (string= branch "master"))))
+        	(setq remote (git-link--branch-remote "master")))
+
+            (if (or (null remote) (string= remote "."))
+        	"origin"
+              remote)))
+
+    1.  or and
+
+        or function is lisp idiom that returns the first non-nil
+
+        and function is lisp idiom that returns nil unless all args are non-nil, in which case the last one is returned.
+
+        It takes a little getting used to for a java programmer like me. But it roughly translates to more verbose code:
+
+            // (or a b c ...)
+            if (a != nil) return a;
+            if (b != nil) return b;
+            if (c != nil) return c;
+            ...
+            return nil
+
+            // (and a b c ... final-expression)
+            if (a==nil) return nil;
+            if (b==nil) return nil;
+            if (c==nil) return nil;
+            ...
+            if (final-expression == nil) return nil;
+            return findl-expression;
+
+    2.  examples
 
             (git-link--current-branch) ;; => "master"
             (git-link--branch-remote "master") ;; => "origin"
@@ -128,28 +210,21 @@ either read or compute the remote, e.g. `origin`
             git config --get "branch.master.remote"
             # origin
 
-    2.  git-link&#x2013;remotes
-
-            (git-link--exec "remote")
-
     3.  completing-read
 
-            (completing-read "Pick one: "
-            		     '(a b c) ;; collection
-            		     nil ;; predicate
-            		     t ;; must match one
-            		     "" ;; initial input
-            		     nil ;; hist
-            		     "b")
+        in `git-link--read-remote` there is a `completing-read` that prompts user for input and takes a lot of arguments.
 
-<a id="orge7aaea7"></a>
+        1.  example
 
-### git-link&#x2013;remote-url
+                (completing-read "Pick one: "
+                		     '(a b c) ;; collection
+                		     nil ;; predicate
+                		     t ;; must match one
+                		     "" ;; initial input
+                		     nil ;; hist
+                		     "b")
 
-    (git-link--remote-url "origin")
-    (git-link--parse-remote (git-link--remote-url "origin"))
-
-<a id="orgf8b80bd"></a>
+<a id="orgfebdae6"></a>
 
 ### cadr
 
@@ -157,9 +232,56 @@ either read or compute the remote, e.g. `origin`
     (cdr '(0 1 2))
     (cadr '(0 1 2))
 
-<a id="orgcf5d34b"></a>
+<a id="org2157121"></a>
 
 ### git-link&#x2013;new
 
+there is a trick to use not error out on string that contains `%`
+
     (message "test%20") ;; error
     (message "test%%20") ;; single %
+
+<a id="orgd0bd411"></a>
+
+## git-link&#x2013;handler
+
+    (defun git-link--handler (alist str)
+      "For an ALIST whose `car' (a regexp) matches STR, return cadr.
+
+    The ALIST consists of (REGEXP FN) list elements.
+    Valid ALISTs are `git-link-remote-alist',`git-link-commit-remote-alist'.
+
+    For the first ALIST element whose REGEXP matches with STR, FN is
+    returned.
+
+The code is relatively straightforward, but it&rsquo;s an interesting pattern enabled by function programming.
+
+invocations of `git-link--handler`
+
+    (let ((handler (git-link--handler git-link-remote-alist (car remote-info)))))
+    (let ((handler (git-link--handler git-link-commit-remote-alist (car remote-info)))))
+
+`git-link-remote-alist` and `git-link-commit-remote-alist` are two alist that has different dispatcher functions for different git hosting websites.
+
+    ;; all these functions takes the same number of arguments, which are git concepts such as remote, commit, and line-numbers
+    (defcustom git-link-remote-alist
+      '(("git.sr.ht" git-link-sourcehut)
+        ("github" git-link-github)
+        ("bitbucket" git-link-bitbucket)
+        ("gitorious" git-link-gitorious)
+        ("gitlab" git-link-gitlab)
+        ("git\\.\\(sv\\|savannah\\)\\.gnu\\.org" git-link-savannah)
+        ("visualstudio\\|azure" git-link-azure)
+        ("sourcegraph" git-link-sourcegraph))
+
+    (defcustom git-link-commit-remote-alist
+      '(("git.sr.ht" git-link-commit-github)
+        ("github" git-link-commit-github)
+        ("bitbucket" git-link-commit-bitbucket)
+        ("gitorious" git-link-commit-gitorious)
+        ("gitlab" git-link-commit-github)
+        ("git\\.\\(sv\\|savannah\\)\\.gnu\\.org" git-link-commit-savannah)
+        ("visualstudio\\|azure" git-link-commit-azure)
+        ("sourcegraph" git-link-commit-sourcegraph))
+
+by calling `(git-link--handler git-link-remote-alist "github")` we get `git-link-github` that given `hostname dirname filename branch commit line-start line-end` will return a git url we can jump to in browser.
