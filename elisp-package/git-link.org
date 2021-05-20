@@ -272,3 +272,31 @@ invocations of =git-link--handler=
 #+end_src
 
 by calling =(git-link--handler git-link-remote-alist "github")= we get =git-link-github= that given =hostname dirname filename branch commit line-start line-end= will return a git url we can jump to in browser.
+
+** Fun Extension
+A typical git workflow is to work on a local branch off =origin/develop=, commit, push then go to github to create a PR.
+
+The following function helps me to create the PR or jump to existing PR of the current branch.
+
+Note i only work on github so have no idea if this works on gitbucket or gitlab or ...
+
+#+begin_src elisp
+(require 'git-link)
+(defun my/goto-github-pr (remote)
+  "Create a url for current branch PR.
+The URL will be added to the kill ring.  If `git-link-open-in-browser'
+is non-nil also call `browse-url'."
+  (interactive (list (git-link--select-remote)))
+  (let* ((remote-url (git-link--remote-url remote))
+         (remote-info (when remote-url (git-link--parse-remote remote-url)))
+         (base (car remote-info))
+         (branch (git-link--current-branch)))
+
+    (if remote-info
+	(git-link--new (format "https://%s/%s/pull/%s" base (cadr remote-info) branch))
+      (error  "Remote `%s' is unknown or contains an unsupported URL" remote))))
+#+end_src
+Now i can commit, push with =magit= and =M-x my/goto-github-pr= to go to the PR in github
+
+- if the PR already exist, the generated url lands in the PR.
+- if the PR doesn't exist, it creates a url that leads to PR creation page. This works b/c a github feature that if you go to a url in the format "https://github.com/<org>/<repo>/pull/<branch-name>" it lands in a PR creation page if the PR doesn't exist.
