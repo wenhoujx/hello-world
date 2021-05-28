@@ -1,0 +1,126 @@
+#+TITLE: Json Snatcher
+
+* package [[https://github.com/sterlingg/json-snatcher][json-snatcher]]
+cool little package that 'snatches' curreng json path, see the demo in Github readme page
+* Single  Entrypoints
+#+begin_src elisp
+;;;###autoload
+(defun jsons-print-path ()
+  "Print the path to the JSON value under point, and save it in the kill ring."
+  (interactive)
+  (funcall jsons-path-printer))
+#+end_src
+loads the interactive command =jsons-print-path=, it calls =jsons-path-printer=.
+
+Uses =funcall= b/c =jsons-path-printer= is a var, that you can programmatically set to different print style, the default is python style.
+
+#+begin_src elisp
+(defvar jsons-path-printer 'jsons-print-path-python "Default jsons path printer")
+#+end_src
+
+there is also =jsons-print-path-jq=
+** Python style:
+json['key1']['key2'][0]
+
+this deep dive will focus on python style.
+** [[https://stedolan.github.io/jq/][jq style]]:
+TODO
+
+* jsons-print-path-python
+The meat is in =jsons-get-path= which returns a TODO, the rest of the code iterate through the =path= with index =i= starting from 0, and continue =setq python_str=.
+
+If the current element is a number, call =number-to-string= to convert to string, o.w. it raises error.
+
+If the current element is not a number, it can only be a string, in which case, simply wrap =(elt path i)= with =[]= and =concat= to =python_str=.
+
+Finally =kill-new= puts the string into the =kill-string=, so you can use =M-y= (=yank-pop=) to paste.
+
+=princ= [[http://ergoemacs.org/emacs/elisp_printing.html][prints human readable output to message area]].
+#+begin_src elisp
+(defun jsons-print-path-python ()
+  "Print the python path to the JSON value under point, and save it in the kill ring."
+  (let ((path (jsons-get-path))
+        (i 0)
+        (python_str ""))
+    (setq path (reverse path))
+    (while (< i (length path))
+      (if (numberp (elt path i))
+          (progn
+            (setq python_str (concat python_str "[" (number-to-string (elt path i)) "]"))
+            (setq i (+ i 1)))
+        (progn
+          (setq python_str (concat python_str "[" (elt path i) "]"))
+          (setq i (+ i 1)))))
+    (progn (kill-new python_str)
+           (princ python_str))))
+#+end_src
+
+* jsons-get-path
+#+begin_src elisp
+(defun jsons-get-path ()
+  "Function to check whether we can grab the json path from the cursor position in the json file."
+  (let ((i 0)
+        (node nil))
+    (setq jsons-curr-region (gethash (current-buffer) jsons-parsed-regions))
+    (when (not (gethash (current-buffer) jsons-parsed))
+      (jsons-parse))
+    (while (< i (length jsons-curr-region))
+      (let*
+          ((json_region (elt jsons-curr-region i))
+           (min_token (elt json_region 0))
+           (max_token (elt json_region 1)))
+        (when (and (> (point) min_token) (< (point) max_token))
+          (setq node (elt json_region 2))))
+      (setq i (+ i 1)))
+    node))
+
+#+end_src
+* emacs session jsons cache
+** =jsons-parsed-regions=
+- keys are =(current-buffer)=
+- values are TODO
+- test use =equal= that two lisp objects must have the same type, structure, and content.
+** =jsons-parsed=
+TODO
+
+* =jsons-parse=
+#+begin_src elisp
+(defun jsons-parse ()
+  "Parse the file given in file, return a list of nodes representing the file."
+  (save-excursion
+    (setq jsons-curr-token 0)
+    (setq jsons-curr-region ())
+    (if (not (gethash (current-buffer) jsons-parsed))
+        (let* ((token (jsons-consume-token))
+               (return_val nil))
+          (cond
+           ((string= token "{") (setq return_val (jsons-object ())))
+           ((string= token "[") (setq return_val (jsons-array ())))
+           (t nil))
+          (puthash (current-buffer) return_val jsons-parsed)
+          (puthash (current-buffer) jsons-curr-region jsons-parsed-regions)
+          return_val)
+      (gethash (current-buffer) jsons-parsed))))
+#+end_src
+* =jsons-remove-buffer= removes a buffer session cache
+
+Add to =kill-buffer-hook= a function that remvoes from =jsons-parsed= and =jsons-parsed-regions= by =(current-buffer)= key.
+#+begin_src elisp
+(defun jsons-remove-buffer ()
+  "Used to clean up the token regions, and parse tree used by the parser."
+  (progn
+    (remhash (current-buffer) jsons-parsed)
+    (remhash (current-buffer) jsons-parsed-regions)))
+
+(add-hook 'kill-buffer-hook 'jsons-remove-buffer)
+#+end_src
+* =jsons-consume-token=
+Goes to the =jsons-curr-token= buffer position and parse get the next token by regex.
+
+A token can be:
+- a string ="foo"=
+- a number =0= or =938928=
+- a literal =true= =false= =null=
+- a delimiter =]= =[= ={= =}= =:= =,=
+
+  note this method move cursor to the right of last matched token.
