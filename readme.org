@@ -1,7 +1,7 @@
-* Personal blog
+* My emacs journey
 ** elisp package learning
-- May 18 2021: [[file:elisp-package/git-link.md][git-link]]
-- May 23 2021:
+- May 18 2021: [[file:git-link/git-link.md][git-link]]
+- May 23 2021: [[file:docker-mode/docker-mode.md][docker-mode]]
 
 * Personal Info
 email: wenhoujx@gmail.com
