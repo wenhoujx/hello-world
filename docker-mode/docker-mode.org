@@ -1,9 +1,15 @@
-#+TITLE: Docker Mode
+#+TITLE: DockerFile Mode
 
-* package =docker-mode=
+* package =dockerfile-mode=
+This packge provides the following features:
+1. dockerfile syntax highlighting
+2. dockerfile indentation
+3. dockerfile compilation
+
+** disclaimer
 I don't actually use this mode directly, but i use other packages rely on this one.
+It's maintained by =spotify=, so it should be of good code quality and fun to read and learn.
 
-It's maintained by =spotify=, so hopefully the code quality is good and up to date.
 
 * =auto-mode-list=
 =auto-mode-alist= is a alist =(regex . major-mode)= see [[https://www.emacswiki.org/emacs/AutoModeAlist][wiki]] here.
@@ -23,7 +29,7 @@ Note that =\'= matches the end of a string, whereas =$= matches the empty string
 (s-match "/Dockerfile\\(?:\\.[^/\\]*\\)?\\'" "/Dockerfile.foo")
 ;; => (/Docker.foo) it's a match
 #+end_src
-* mode definition
+* =define-derived-mode=
 this autoload code block defines the =dockerfile-mode= derived =prog-mode=,
 
 it defines
@@ -52,9 +58,80 @@ more on these latter
   (set (make-local-variable 'indent-line-function) #'dockerfile-indent-line-function))
 #+end_src
 
-* =dockerfile-mode-syntax-table=
-* =make-local-variable=
-* =dockerfile-mode-abbrev-table=
+** =dockerfile-mode-syntax-table=
+#+begin_src elisp
+(defvar dockerfile-mode-syntax-table
+  (let ((table (make-syntax-table)))
+    (modify-syntax-entry ?# "<" table)
+    (modify-syntax-entry ?\n ">" table)
+    (modify-syntax-entry ?' "\"" table)
+    (modify-syntax-entry ?= "." table)
+    table)
+  "Syntax table for `dockerfile-mode'.")
+#+end_src
+
+see [[http://ergoemacs.org/emacs/elisp_syntax_table.html][Xah, Elisp: syntax table]] for more details.
+
+The parent =prog-mode= has some syntax chars that need to be changed for dockerfile.
+1. =#= means =comment== starts, it's punctuation in =prog-mode=
+2. =\= means =comment ends, it's a whitespace in =prog-mode=
+3. ='= means =string delimiter=, it's a punctuation in =prog-mode=
+4. === means =punctuation=,  it's a symbol in =prog-mode=
+
+examples:
+#+begin_src yaml
+# this is a comment
+
+# 'foo' is a string in docker file.
+
+# the = sign separates the words
+syntax=docker/dockerfile:1
+#+end_src
+
+** =make-local-variable=
+use =make-local-variable= to make certain vars local to the curreng opening =dockerfile= buffer, so that change their meaning/behavior doesn't change their meaning/behavior in other =non-dockerfile-mode= buffers.
+
+=comment-start=, =comment-end= and =comment-start-skip= affects =comment-region= and =uncomment-region= and other comments related packages. In particular, =comment-start-skip= is at least 1  =#= and any whitespace.
+
+
+** =imenu-generic-expression=
+provides regex for create an imenu
+#+begin_quote
+List of definition matchers for creating an Imenu index.
+
+Each element of this list should have the form
+
+  (MENU-TITLE REGEXP INDEX [FUNCTION] [ARGUMENTS...])
+
+#+end_quote
+
+** =indent-line-function=
+#+begin_src elisp
+(defun dockerfile-indent-line-function ()
+  "Indent lines in a Dockerfile.
+
+Lines beginning with a keyword are ignored, and any others are
+indented by one `dockerfile-indent-offset'."
+  (unless (member (get-text-property (point-at-bol) 'face)
+                  '(font-lock-comment-delimiter-face font-lock-keyword-face))
+    (save-excursion
+      (beginning-of-line)
+      (skip-chars-forward "[ \t]" (point-at-eol))
+      (unless (equal (point) (point-at-eol)) ; Ignore empty lines.
+        ;; Delete existing whitespace.
+        (delete-char (- (point-at-bol) (point)))
+        (indent-to dockerfile-indent-offset)))))
+#+end_src
+1. ignore keyword and comments at the beginning-of-line
+2. otherwise, go to the beginning-of-line, skip whitespace.
+3. ignore empty line
+4. delete whitespace from beginning-of-line
+5. indent =dockerfile-indent-offset=  which is =(or standard-indent 2)=
+
+* More than just syntax highlighting
+dockerfile-mode provides more than just syntax highlighting, two more autoload functions that compile the current buffer of a docker file.
+
+See the following sections
 * =dockerfile-build-buffer=
 #+begin_src elisp
 ;;;###autoload
@@ -95,7 +172,7 @@ The build string will be of the format:
   :group 'dockerfile
   :type 'string)
 #+end_src
-straightforward customizeable var to use, make sure =docker= is in your =PATH=, do
+straightforward customizeable var to use, make sure =docker= is in your =PATH=, try
 #+begin_src sh
 which docker
 # and see if this prints out the right path for docker executable
@@ -106,9 +183,58 @@ which docker
   "Return a --tag shell-quoted IMAGE-NAME string or an empty string if image-name is blank."
     (if (string= image-name "") "" (format "--tag %s " (shell-quote-argument image-name))))
 #+end_src
-this method returns a string like ="--tag <image-name>"=, tag a docker with image-name e.g. ="test-service"= automatically creates a alias ="test-service:latest"=
+this method returns a string like =--tag <image-name>=, tag a docker with image-name e.g. =test-service= automatically creates a alias. [[https://docs.docker.com/engine/reference/commandline/tag/][doc]] =test-service:latest=
 ** =dockerfile-build-arg-string=
+#+begin_src elisp
+(defun dockerfile-build-arg-string ()
+  "Create a --build-arg string for each element in `dockerfile-build-args'."
+  (mapconcat (lambda (arg) (concat "--build-arg " (shell-quote-argument arg)))
+             dockerfile-build-args " "))
+#+end_src
+=mapconcat= applies the =lambda= to each element in the list to set a list of strings and concat them with a joiner, which in this case is =" "=.
+*** =dockerfile-build-args=
+#+begin_src elisp
+(defcustom dockerfile-build-args nil
+  "List of --build-arg to pass to docker build.
+
+Each element of the list will be passed as a separate
+ --build-arg to the docker build command."
+  :type '(repeat string)
+  :group 'dockerfile)
+#+end_src
+default =nil=, customizeable.
 ** =dockerfile-standard-filename=
+=file= arg is =(buffer-file-name)= in the case when the file is local, and =buffer-file-name= returns the full path.
+#+begin_src elisp
+(defun dockerfile-standard-filename (file)
+  "Convert the FILE name to OS standard.
+If in Cygwin environment, uses Cygwin specific function to convert the
+file name.  Otherwise, uses Emacs' standard conversion function."
+  (if (fboundp 'cygwin-convert-file-name-to-windows)
+      (replace-regexp-in-string
+       (rx "\\") "\\\\" (cygwin-convert-file-name-to-windows file) t t)
+    (convert-standard-filename file)))
+#+end_src
+get OS standard filename
+
+the reason
+#+begin_quote
+(defun convert-standard-filename (filename)
+  "Convert a standard file's name to something suitable for the OS.
+This means to guarantee valid names and perhaps to canonicalize
+certain patterns.
+
+FILENAME should be an absolute file name since the conversion rules
+sometimes vary depending on the position in the file name.  E.g. c:/foo
+is a valid DOS file name, but c:/bar/c:/foo is not.
+
+This function's standard definition is trivial; it just returns
+the argument.  However, on Windows and DOS, replace invalid
+characters.  On DOS, make sure to obey the 8.3 limitations.
+In the native Windows build, turn Cygwin names into native names.
+
+See Info node `(elisp)Standard File Names' for more details."
+#+end_quote
 
 * =dockerfile-build-no-cache-buffer=
 It calls =dockerfile-build-buffer= with =image-name= and explicit =no-cache == t=.
