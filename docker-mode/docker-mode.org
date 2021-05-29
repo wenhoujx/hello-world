@@ -1,6 +1,9 @@
 #+TITLE: Docker Mode
 
 * package =docker-mode=
+I don't actually use this mode directly, but i use other packages rely on this one.
+
+It's maintained by =spotify=, so hopefully the code quality is good and up to date.
 
 * =auto-mode-list=
 =auto-mode-alist= is a alist =(regex . major-mode)= see [[https://www.emacswiki.org/emacs/AutoModeAlist][wiki]] here.
@@ -48,7 +51,7 @@ more on these latter
   (setq local-abbrev-table dockerfile-mode-abbrev-table)
   (set (make-local-variable 'indent-line-function) #'dockerfile-indent-line-function))
 #+end_src
-*
+
 * =dockerfile-mode-syntax-table=
 * =make-local-variable=
 * =dockerfile-mode-abbrev-table=
@@ -57,8 +60,55 @@ more on these latter
 ;;;###autoload
 (defun dockerfile-build-buffer (image-name &optional no-cache)
   "Build an image called IMAGE-NAME based upon the buffer.
-...
+
+If prefix arg NO-CACHE is set, don't cache the image.
+The build string will be of the format:
+`sudo docker build --no-cache --tag IMAGE-NAME --build-args arg1.. -f filename directory`"
+
+  (interactive (list (dockerfile-read-image-name) prefix-arg))
+  (save-buffer)
+    (compilation-start
+        (format
+            "%s%s%s build %s %s %s -f %s %s"
+            (if dockerfile-use-buildkit "DOCKER_BUILDKIT=1 " "")
+            (if dockerfile-use-sudo "sudo " "")
+            dockerfile-mode-command
+            (if no-cache "--no-cache" "")
+            (dockerfile-tag-string image-name)
+            (dockerfile-build-arg-string)
+            (shell-quote-argument (dockerfile-standard-filename
+				   (or (file-remote-p (buffer-file-name) 'localname)
+				       (buffer-file-name))))
+            (shell-quote-argument (dockerfile-standard-filename
+				   (or (file-remote-p default-directory 'localname)
+				       default-directory))))
+    nil
+    (lambda (_) (format "*docker-build-output: %s *" image-name))))
 #+end_src
+1. saves buffer
+2. =compilation-start=, afaik this is better than a plain =shell command= b/c it pops a compliation buffer in =compliation mode= with =syntax highlighting= and easier =previous-error= and =next-error= navigation and more
+3. run a docker command with =compilation-start=
+** =dockerfile-mode-command=
+#+begin_src elisp
+(defcustom dockerfile-mode-command "docker"
+  "Which binary to use to build images."
+  :group 'dockerfile
+  :type 'string)
+#+end_src
+straightforward customizeable var to use, make sure =docker= is in your =PATH=, do
+#+begin_src sh
+which docker
+# and see if this prints out the right path for docker executable
+#+end_src
+** =dockerfile-tag-string image-name=
+#+begin_src elisp
+(defun dockerfile-tag-string (image-name)
+  "Return a --tag shell-quoted IMAGE-NAME string or an empty string if image-name is blank."
+    (if (string= image-name "") "" (format "--tag %s " (shell-quote-argument image-name))))
+#+end_src
+this method returns a string like ="--tag <image-name>"=, tag a docker with image-name e.g. ="test-service"= automatically creates a alias ="test-service:latest"=
+** =dockerfile-build-arg-string=
+** =dockerfile-standard-filename=
 
 * =dockerfile-build-no-cache-buffer=
 It calls =dockerfile-build-buffer= with =image-name= and explicit =no-cache == t=.
@@ -72,7 +122,7 @@ It calls =dockerfile-build-buffer= with =image-name= and explicit =no-cache == t
   (dockerfile-build-buffer image-name t))
 #+end_src
 
-* =dockerfile-read-image-name=
+** =dockerfile-read-image-name=
 #+begin_src elisp
 (defvar dockerfile-image-name-history nil
   "History of image names read by `dockerfile-read-image-name'.")
