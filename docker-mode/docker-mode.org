@@ -10,7 +10,6 @@ This packge provides the following features:
 I don't actually use this mode directly, but i use other packages rely on this one.
 It's maintained by =spotify=, so it should be of good code quality and fun to read and learn.
 
-
 * =auto-mode-list=
 =auto-mode-alist= is a alist =(regex . major-mode)= see [[https://www.emacswiki.org/emacs/AutoModeAlist][wiki]] here.
 
@@ -273,4 +272,107 @@ Fifth arg HIST, if non-nil, specifies a history list and optionally
   the history as the value of INITIAL-CONTENTS.  Positions are counted
   starting from 1 at the beginning of the list.  If HIST is the symbol
   t, history is not recorded.
+#+end_quote
+* faces and styles
+#+begin_src elisp
+(defface dockerfile-image-name
+  '((t (:inherit (font-lock-type-face bold))))
+  "Face to highlight the base image name after FROM instruction.")
+
+(defface dockerfile-image-alias
+  '((t (:inherit (font-lock-constant-face bold))))
+  "Face to highlight the base image alias inf FROM ... AS <alias> construct.")
+
+(defvar dockerfile-font-lock-keywords
+  `(,(cons (rx (or line-start "onbuild ")
+               (group (or "from" "maintainer" "run" "cmd" "expose" "env" "arg"
+                          "add" "copy" "entrypoint" "volume" "user" "workdir" "onbuild"
+                          "label" "stopsignal" "shell" "healthcheck"))
+               word-boundary)
+           font-lock-keyword-face)
+    (,dockerfile--from-regex
+     (1 'dockerfile-image-name)
+     (2 'dockerfile-image-alias nil t))
+    ,@(sh-font-lock-keywords)
+    ,@(sh-font-lock-keywords-2)
+    ,@(sh-font-lock-keywords-1))
+  "Default `font-lock-keywords' for `dockerfile mode'.")
+
+(set (make-local-variable 'font-lock-defaults)
+       '(dockerfile-font-lock-keywords nil t))
+#+end_src
+This =var= defines the syntax highlighting using =font-lock= high level interafce, with case-insensitive highlighting.
+
+#+begin_quote
+font-lock-keywords info:
+
+Each element in a user-level keywords list should have one of these forms:
+
+ MATCHER
+ (MATCHER . SUBEXP)
+ (MATCHER . FACENAME)
+ (MATCHER . HIGHLIGHT)
+ (MATCHER HIGHLIGHT ...)
+ (eval . FORM)
+
+...later
+HIGHLIGHT should be either MATCH-HIGHLIGHT or MATCH-ANCHORED.
+
+...later
+MATCH-HIGHLIGHT should be of the form:
+
+ (SUBEXP FACENAME [OVERRIDE [LAXMATCH]])
+
+SUBEXP is the number of the subexpression of MATCHER to be
+highlighted.
+#+end_quote
+
+the =var= above uses two forms:
+
+- =(MATCHER . FACENAME)= match with regex and highlight with =font-lock-keyword-face=
+-  =(MATCHER HIGHLIGHT ...)= match with regex and highlight different groups with different custom faces.
+
+reference: [[http://ergoemacs.org/emacs/elisp_font_lock_mode.html][Xah: Elisp: Font Lock Mode Basics]] and emacs manual.
+* default keymap
+#+begin_src elisp
+(defvar dockerfile-mode-map
+  (let ((map (make-sparse-keymap))
+        (menu-map (make-sparse-keymap)))
+    (define-key map "\C-c\C-b" #'dockerfile-build-buffer)
+    (define-key map "\C-c\M-b" #'dockerfile-build-no-cache-buffer)
+    (define-key map "\C-c\C-c" #'comment-region)
+    (define-key map [menu-bar dockerfile-mode] (cons "Dockerfile" menu-map))
+    (define-key menu-map [dfc]
+      '(menu-item "Comment Region" comment-region
+                  :help "Comment Region"))
+    (define-key menu-map [dfb]
+      '(menu-item "Build" dockerfile-build-buffer
+                  :help "Send the Dockerfile to docker build"))
+    (define-key menu-map [dfb]
+      '(menu-item "Build without cache" dockerfile-build-no-cache-buffer
+                  :help "Send the Dockerfile to docker build without cache"))
+    map))
+
+... later
+;;;###autoload
+(define-derived-mode dockerfile-mode prog-mode "Dockerfile"
+  "A major mode to edit Dockerfiles.
+\\{dockerfile-mode-map}
+"...
+#+end_src
+
+apparently that's all it needs to register a =mode-map= with a =major-mode=.
+
+=map= is pretty standard.
+
+=menu-bar= in interesting. it adds a Dockerfile  option to the top menu bar. I can't explain better than [[https://emacs.stackexchange.com/questions/15093/how-to-add-an-item-to-the-menu-bar][this SO answer]]. =:help= makes the commands searchable in help menu option.
+
+as far as i can tell, those [dfc] [dfb] are placeholders that doesn't do anything?
+
+#+begin_quote
+[[https://www.gnu.org/software/emacs/manual/html_node/elisp/Menu-Example.html][Menu Example:]]
+
+Note the symbols which the bindings are made for; these appear inside square brackets, in the key sequence being defined. In some cases, this symbol is the same as the command name; sometimes it is different. These symbols are treated as function keys, but they are not real function keys on the keyboard. They do not affect the functioning of the menu itself, but they are echoed in the echo area when the user selects from the menu, and they appear in the output of where-is and apropos.
+
+
 #+end_quote
