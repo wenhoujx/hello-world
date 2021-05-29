@@ -57,6 +57,7 @@ more on these latter
 ;;;###autoload
 (defun dockerfile-build-buffer (image-name &optional no-cache)
   "Build an image called IMAGE-NAME based upon the buffer.
+...
 #+end_src
 
 * =dockerfile-build-no-cache-buffer=
