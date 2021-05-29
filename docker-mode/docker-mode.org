@@ -1,0 +1,99 @@
+#+TITLE: Docker Mode
+
+* package =docker-mode=
+
+* =auto-mode-list=
+=auto-mode-alist= is a alist =(regex . major-mode)= see [[https://www.emacswiki.org/emacs/AutoModeAlist][wiki]] here.
+
+the following lines ties dockerfiles to =dockerfile-mode=
+#+begin_src elisp
+;;;###autoload
+(add-to-list 'auto-mode-alist '("/Dockerfile\\(?:\\.[^/\\]*\\)?\\'" .
+                                dockerfile-mode))
+
+;;;###autoload
+(add-to-list 'auto-mode-alist '("\\.dockerfile\\'" . dockerfile-mode))
+#+end_src
+Note that =\'= matches the end of a string, whereas =$= matches the empty string before a newline.
+
+#+begin_src elisp
+(s-match "/Dockerfile\\(?:\\.[^/\\]*\\)?\\'" "/Dockerfile.foo")
+;; => (/Docker.foo) it's a match
+#+end_src
+* mode definition
+this autoload code block defines the =dockerfile-mode= derived =prog-mode=,
+
+it defines
+- a syntax table
+- a few local vars
+- an abbrev table
+
+more on these latter
+#+begin_src elisp
+;;;###autoload
+(define-derived-mode dockerfile-mode prog-mode "Dockerfile"
+  "A major mode to edit Dockerfiles.
+\\{dockerfile-mode-map}
+"
+  (set-syntax-table dockerfile-mode-syntax-table)
+  (set (make-local-variable 'imenu-generic-expression)
+       `(("Stage" dockerfile--imenu-function 1)))
+  (set (make-local-variable 'require-final-newline) mode-require-final-newline)
+  (set (make-local-variable 'comment-start) "#")
+  (set (make-local-variable 'comment-end) "")
+  (set (make-local-variable 'comment-start-skip) "#+ *")
+  (set (make-local-variable 'parse-sexp-ignore-comments) t)
+  (set (make-local-variable 'font-lock-defaults)
+       '(dockerfile-font-lock-keywords nil t))
+  (setq local-abbrev-table dockerfile-mode-abbrev-table)
+  (set (make-local-variable 'indent-line-function) #'dockerfile-indent-line-function))
+#+end_src
+*
+* =dockerfile-mode-syntax-table=
+* =make-local-variable=
+* =dockerfile-mode-abbrev-table=
+* =dockerfile-build-buffer=
+#+begin_src elisp
+;;;###autoload
+(defun dockerfile-build-buffer (image-name &optional no-cache)
+  "Build an image called IMAGE-NAME based upon the buffer.
+#+end_src
+
+* =dockerfile-build-no-cache-buffer=
+It calls =dockerfile-build-buffer= with =image-name= and explicit =no-cache == t=.
+
+=interactive= must use =list= for custom args.
+#+begin_src elisp
+;;;###autoload
+(defun dockerfile-build-no-cache-buffer (image-name)
+  "Build an image called IMAGE-NAME based upon the buffer without cache."
+  (interactive (list (dockerfile-read-image-name)))
+  (dockerfile-build-buffer image-name t))
+#+end_src
+
+* =dockerfile-read-image-name=
+#+begin_src elisp
+(defvar dockerfile-image-name-history nil
+  "History of image names read by `dockerfile-read-image-name'.")
+
+(defun dockerfile-read-image-name ()
+  "Read a docker image name."
+  (read-string "Image name: " dockerfile-image-name 'dockerfile-image-name-history))
+#+end_src
+
+=read-string= with init-input and history.
+
+nice thing about =read-string= or =read-from-minibuffer= is if given a symbol,it automatically records the history.
+#+begin_quote
+read-from-minibuffer:
+
+Fifth arg HIST, if non-nil, specifies a history list and optionally
+  the initial position in the list.  It can be a symbol, which is the
+  history list variable to use, or a cons cell (HISTVAR . HISTPOS).
+  In that case, HISTVAR is the history list variable to use, and
+  HISTPOS is the initial position for use by the minibuffer history
+  commands.  For consistency, you should also specify that element of
+  the history as the value of INITIAL-CONTENTS.  Positions are counted
+  starting from 1 at the beginning of the list.  If HIST is the symbol
+  t, history is not recorded.
+#+end_quote
