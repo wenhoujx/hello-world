@@ -1,26 +1,38 @@
-- [package `docker-mode`](#orgbcb8a85)
-- [`auto-mode-list`](#org451e820)
-- [mode definition](#org8acc731)
-- [`dockerfile-mode-syntax-table`](#org2304a1b)
-- [`make-local-variable`](#org7bc0e69)
-- [`dockerfile-mode-abbrev-table`](#org2c1a963)
-- [`dockerfile-build-buffer`](#org3af7fc0)
-  - [`dockerfile-mode-command`](#org7745d25)
-  - [`dockerfile-tag-string image-name`](#org02622a7)
-  - [`dockerfile-build-arg-string`](#org74a4e2f)
-  - [`dockerfile-standard-filename`](#org94f7d99)
-- [`dockerfile-build-no-cache-buffer`](#org3351d12)
-  - [`dockerfile-read-image-name`](#orgce357bb)
+- [package `dockerfile-mode`](#orgd02fd7d)
+  - [disclaimer](#org4cb33be)
+- [`auto-mode-list`](#org22bda44)
+- [`define-derived-mode`](#org8fe6d27)
+  - [`dockerfile-mode-syntax-table`](#org49212df)
+  - [`make-local-variable`](#org4bd6fc5)
+  - [`imenu-generic-expression`](#orgc446d88)
+  - [`indent-line-function`](#org599c5e4)
+- [More than just syntax highlighting](#org62f78e4)
+- [`dockerfile-build-buffer`](#orgdf0d34f)
+  - [`dockerfile-mode-command`](#orga36d3e4)
+  - [`dockerfile-tag-string image-name`](#org75038a5)
+  - [`dockerfile-build-arg-string`](#org26907f2)
+    - [`dockerfile-build-args`](#org0d310f6)
+  - [`dockerfile-standard-filename`](#orgf5a3508)
+- [`dockerfile-build-no-cache-buffer`](#orgcbf314e)
+  - [`dockerfile-read-image-name`](#orgd5d078c)
 
-<a id="orgbcb8a85"></a>
+<a id="orgd02fd7d"></a>
 
-# package `docker-mode`
+# package `dockerfile-mode`
 
-I don&rsquo;t actually use this mode directly, but i use other packages rely on this one.
+This packge provides the following features:
 
-It&rsquo;s maintained by `spotify`, so hopefully the code quality is good and up to date.
+1.  dockerfile syntax highlighting
+2.  dockerfile indentation
+3.  dockerfile compilation
 
-<a id="org451e820"></a>
+<a id="org4cb33be"></a>
+
+## disclaimer
+
+I don&rsquo;t actually use this mode directly, but i use other packages rely on this one. It&rsquo;s maintained by `spotify`, so it should be of good code quality and fun to read and learn.
+
+<a id="org22bda44"></a>
 
 # `auto-mode-list`
 
@@ -44,9 +56,9 @@ Note that `\'` matches the end of a string, whereas `$` matches the empty string
 ;; => (/Docker.foo) it's a match
 ```
 
-<a id="org8acc731"></a>
+<a id="org8fe6d27"></a>
 
-# mode definition
+# `define-derived-mode`
 
 this autoload code block defines the `dockerfile-mode` derived `prog-mode`,
 
@@ -78,19 +90,97 @@ more on these latter
   (set (make-local-variable 'indent-line-function) #'dockerfile-indent-line-function))
 ```
 
-<a id="org2304a1b"></a>
+<a id="org49212df"></a>
 
-# `dockerfile-mode-syntax-table`
+## `dockerfile-mode-syntax-table`
 
-<a id="org7bc0e69"></a>
+```elisp
+(defvar dockerfile-mode-syntax-table
+  (let ((table (make-syntax-table)))
+    (modify-syntax-entry ?# "<" table)
+    (modify-syntax-entry ?\n ">" table)
+    (modify-syntax-entry ?' "\"" table)
+    (modify-syntax-entry ?= "." table)
+    table)
+  "Syntax table for `dockerfile-mode'.")
+```
 
-# `make-local-variable`
+see [Xah, Elisp: syntax table](http://ergoemacs.org/emacs/elisp_syntax_table.html) for more details.
 
-<a id="org2c1a963"></a>
+The parent `prog-mode` has some syntax chars that need to be changed for dockerfile.
 
-# `dockerfile-mode-abbrev-table`
+1.  `#` means `comment=` starts, it&rsquo;s punctuation in `prog-mode`
+2.  `\` means `comment ends, it's a whitespace in =prog-mode`
+3.  `'` means `string delimiter`, it&rsquo;s a punctuation in `prog-mode`
+4.  `=` means `punctuation`, it&rsquo;s a symbol in `prog-mode`
 
-<a id="org3af7fc0"></a>
+examples:
+
+```yaml
+# this is a comment
+
+# 'foo' is a string in docker file.
+
+# the = sign separates the words
+syntax=docker/dockerfile:1
+```
+
+<a id="org4bd6fc5"></a>
+
+## `make-local-variable`
+
+use `make-local-variable` to make certain vars local to the curreng opening `dockerfile` buffer, so that change their meaning/behavior doesn&rsquo;t change their meaning/behavior in other `non-dockerfile-mode` buffers.
+
+`comment-start`, `comment-end` and `comment-start-skip` affects `comment-region` and `uncomment-region` and other comments related packages. In particular, `comment-start-skip` is at least 1 `#` and any whitespace.
+
+<a id="orgc446d88"></a>
+
+## `imenu-generic-expression`
+
+provides regex for create an imenu
+
+> List of definition matchers for creating an Imenu index.
+>
+> Each element of this list should have the form
+>
+> (MENU-TITLE REGEXP INDEX [FUNCTION] [ARGUMENTS&#x2026;])
+
+<a id="org599c5e4"></a>
+
+## `indent-line-function`
+
+```elisp
+(defun dockerfile-indent-line-function ()
+  "Indent lines in a Dockerfile.
+
+Lines beginning with a keyword are ignored, and any others are
+indented by one `dockerfile-indent-offset'."
+  (unless (member (get-text-property (point-at-bol) 'face)
+                  '(font-lock-comment-delimiter-face font-lock-keyword-face))
+    (save-excursion
+      (beginning-of-line)
+      (skip-chars-forward "[ \t]" (point-at-eol))
+      (unless (equal (point) (point-at-eol)) ; Ignore empty lines.
+        ;; Delete existing whitespace.
+        (delete-char (- (point-at-bol) (point)))
+        (indent-to dockerfile-indent-offset)))))
+```
+
+1.  ignore keyword and comments at the beginning-of-line
+2.  otherwise, go to the beginning-of-line, skip whitespace.
+3.  ignore empty line
+4.  delete whitespace from beginning-of-line
+5.  indent `dockerfile-indent-offset` which is `(or standard-indent 2)`
+
+<a id="org62f78e4"></a>
+
+# More than just syntax highlighting
+
+dockerfile-mode provides more than just syntax highlighting, two more autoload functions that compile the current buffer of a docker file.
+
+See the following sections
+
+<a id="orgdf0d34f"></a>
 
 # `dockerfile-build-buffer`
 
@@ -128,7 +218,7 @@ The build string will be of the format:
 2.  `compilation-start`, afaik this is better than a plain `shell command` b/c it pops a compliation buffer in `compliation mode` with `syntax highlighting` and easier `previous-error` and `next-error` navigation and more
 3.  run a docker command with `compilation-start`
 
-<a id="org7745d25"></a>
+<a id="orga36d3e4"></a>
 
 ## `dockerfile-mode-command`
 
@@ -139,14 +229,14 @@ The build string will be of the format:
   :type 'string)
 ```
 
-straightforward customizeable var to use, make sure `docker` is in your `PATH`, do
+straightforward customizeable var to use, make sure `docker` is in your `PATH`, try
 
 ```sh
 which docker
 # and see if this prints out the right path for docker executable
 ```
 
-<a id="org02622a7"></a>
+<a id="org75038a5"></a>
 
 ## `dockerfile-tag-string image-name`
 
@@ -156,17 +246,67 @@ which docker
     (if (string= image-name "") "" (format "--tag %s " (shell-quote-argument image-name))))
 ```
 
-this method returns a string like `"--tag <image-name>"`, tag a docker with image-name e.g. `"test-service"` automatically creates a alias `"test-service:latest"`
+this method returns a string like `--tag <image-name>`, tag a docker with image-name e.g. `test-service` automatically creates a alias. [doc](https://docs.docker.com/engine/reference/commandline/tag/) `test-service:latest`
 
-<a id="org74a4e2f"></a>
+<a id="org26907f2"></a>
 
 ## `dockerfile-build-arg-string`
 
-<a id="org94f7d99"></a>
+```elisp
+(defun dockerfile-build-arg-string ()
+  "Create a --build-arg string for each element in `dockerfile-build-args'."
+  (mapconcat (lambda (arg) (concat "--build-arg " (shell-quote-argument arg)))
+             dockerfile-build-args " "))
+```
+
+`mapconcat` applies the `lambda` to each element in the list to set a list of strings and concat them with a joiner, which in this case is `" "`.
+
+<a id="org0d310f6"></a>
+
+### `dockerfile-build-args`
+
+```elisp
+(defcustom dockerfile-build-args nil
+  "List of --build-arg to pass to docker build.
+
+Each element of the list will be passed as a separate
+ --build-arg to the docker build command."
+  :type '(repeat string)
+  :group 'dockerfile)
+```
+
+default `nil`, customizeable.
+
+<a id="orgf5a3508"></a>
 
 ## `dockerfile-standard-filename`
 
-<a id="org3351d12"></a>
+`file` arg is `(buffer-file-name)` in the case when the file is local, and `buffer-file-name` returns the full path.
+
+```elisp
+(defun dockerfile-standard-filename (file)
+  "Convert the FILE name to OS standard.
+If in Cygwin environment, uses Cygwin specific function to convert the
+file name.  Otherwise, uses Emacs' standard conversion function."
+  (if (fboundp 'cygwin-convert-file-name-to-windows)
+      (replace-regexp-in-string
+       (rx "\\") "\\\\" (cygwin-convert-file-name-to-windows file) t t)
+    (convert-standard-filename file)))
+```
+
+get OS standard filename
+
+the reason
+
+> (defun convert-standard-filename (filename) &ldquo;Convert a standard file&rsquo;s name to something suitable for the OS. This means to guarantee valid names and perhaps to canonicalize certain patterns.
+>
+> FILENAME should be an absolute file name since the conversion rules sometimes vary depending on the position in the file name. E.g. c:/foo is a valid DOS file name, but c:/bar/c:/foo is not.
+>
+> This function&rsquo;s standard definition is trivial; it just returns the argument. However, on Windows and DOS, replace invalid characters. On DOS, make sure to obey the 8.3 limitations. In the native Windows build, turn Cygwin names into native names.
+>
+> See Info node \`(elisp)Standard File Names&rsquo; for more details.&ldquo;
+
+<a id="orgcbf314e"></a>
 
 # `dockerfile-build-no-cache-buffer`
 
@@ -182,7 +322,7 @@ It calls `dockerfile-build-buffer` with `image-name` and explicit `no-cache =` t
   (dockerfile-build-buffer image-name t))
 ```
 
-<a id="orgce357bb"></a>
+<a id="orgd5d078c"></a>
 
 ## `dockerfile-read-image-name`
 
