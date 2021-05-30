@@ -2,10 +2,11 @@
 ** elisp package learning
 - May 18 2021: [[file:git-link/git-link.md][git-link]]
 - May 23 2021: [[file:docker-mode/docker-mode.md][docker-mode]]
+- May 30 2021: [[file:expand-region/expand-region.md][er/expand-region]]
+
 ** plan to cover the following in the future, in no particular order.
 - dabbrev
 - json-mode
-- expand-region
 
 * Personal Info
 email: wenhoujx@gmail.com
