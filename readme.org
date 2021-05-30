@@ -7,6 +7,9 @@
 ** plan to cover the following in the future, in no particular order.
 - dabbrev
 - json-mode
+- [[https://github.com/chrisbarrett/skeletor.el][skeletor]]
+- [[https://github.com/zainab-ali/pair-tree.el][pair-tree]]
+- hippie-expand
 
 * Personal Info
 email: wenhoujx@gmail.com
