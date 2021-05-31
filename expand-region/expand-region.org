@@ -47,7 +47,7 @@ pretty straightforward
 
 
 reference: [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Interactive-Codes.html#Interactive-Codes][interactive codes]]
-** all those eval-after-load
+** all those =eval-after-load=
 whenever a major mode is loaded, loads te corresponding =*-expansions= sub-package.
 
 different language has different syntax-table and semantic meanings for the same char, that's why there is one =*-expansions= per language.
@@ -108,9 +108,6 @@ If set to nil, always place the cursor at the beginning of the region."
       'early-exit)
 #+end_src
 if the expansion is already at the max and min possible, return ='early-exit'=.
-
-*** er/try-expand-list
-
 
 * expansion and contraction history
 #+begin_src elisp
@@ -215,4 +212,4 @@ repeated calls doens't grow the region.
 
 
 * contraction
-=er/contract-region= is pretty much the oppsite of the =er/expand-region=, so i will not covert it this time.
+=er/contract-region= uses the =er/history= built by =er/expand-region=.
