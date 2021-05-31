@@ -288,7 +288,40 @@ In this case, the table var is a function. so we know s - string, p - predicate,
 
 #+end_src
 
+when action is ='metadata=, this is our chance to determine the behavior of the minibuffer candidate:
+- =cycle-sort-function= function to sort entries when cycling. i am not 100% sure what this does, and the doc is vague. I guess when user comes to the bottom of the match minibuffer and still tries go down, this function is trigger with the current list and the returned list is used to update the minibuffer content. In our case, it simply goes back to the head of the minibuffer and start again.
+- =category= a symbol describing what kind of text the completion function is trying to complete. This category is shown in the minibuffer so you know where this candidate is computed and offered.
+- more controls [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Programmed-Completion.html][here]]
+
+*** when action is not 'metadata
+we need to do real search and provide a list of candidate for minibuffer.
+
+**** find candidates
+=dabbrev--find-all-expansions= finds all candidates for user-typed substring =abbrev=.
+**** case handling
+the last part of the function handles case to match the user-typed substring case.
+- if =dabbrev-case-replace= is falsey or =ignore-case-p= is truthy, return the candidates list as is
+- else if user-typed substring is UPCASE, upcase the candidates list
+- else if user-typed subsrtring is capitalized, capitalized the candidates list
+- else downcase the candidates list.
+*** dabbrev--find-all-expansions
+#+begin_src elisp
+(defun dabbrev--find-all-expansions (abbrev ignore-case)
+  "Return a list of all possible expansions of ABBREV.
+If IGNORE-CASE is non-nil, accept matches which differ in case."
+  (let ((all-expansions nil)
+	expansion)
+    (save-excursion
+      (goto-char (point-min))
+      (while (setq expansion (dabbrev--find-expansion abbrev -1 ignore-case))
+	(setq all-expansions (cons expansion all-expansions))))
+    all-expansions))
+#+end_src
+go to the beginning of the buffer, continue to call =dabbrev--find-expansion= until all matches are found and inserted in =all-expansions=.
+
 *** complete-with-action
+complete-with-action is a helper function that handle the rest of the API so code author can focus on handling metadata, [[https://with-emacs.com/posts/tutorials/customize-completion-at-point/][see here]].
+
 Defined in =minibuffer.el=
 #+begin_quote
 Signature
@@ -308,4 +341,3 @@ like try-completion; if it is t, this function works like
 all-completion; and any other value makes it work like
 test-completion.
 #+end_quote
-
