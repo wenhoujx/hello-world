@@ -1,24 +1,26 @@
-- [dabbrev](#orgc6b8fce)
-- [dabbrev-expand](#org714ff10)
-- [The Meat: dabbrev&#x2013;search](#orgc030599)
-  - [dabbrev&#x2013;abbrev-char-regexp](#org5111129)
-  - [dabbrev-limit](#orga233e5a)
-  - [search](#org5ae32ab)
-  - [filter matches](#org081dc96)
-- [remember the last search](#orgbbeb18f)
-- [search from other buffers and friend buffers](#orge297627)
-- [find all candidates at once.](#org8f40bdf)
-  - [completion-in-region](#org3b262ce)
-  - [table lambda:](#org0cc46c4)
-    - [complete-with-action](#org81875ad)
+- [dabbrev](#org0b82fe7)
+- [dabbrev-expand](#org939f2f1)
+- [The Meat: dabbrev&#x2013;search](#org638d021)
+  - [dabbrev&#x2013;abbrev-char-regexp](#orgd2fd589)
+  - [dabbrev-limit](#org2c8743a)
+  - [search](#org8cc3c3b)
+  - [filter matches](#org8ea7b55)
+- [remember the last search](#orga9ad0ae)
+- [search from other buffers and friend buffers](#orgf3cc5dc)
+- [find all candidates at once.](#org6435527)
+  - [completion-in-region](#org5800421)
+  - [table lambda:](#orgdc67c0d)
+    - [when action is not &rsquo;metadata](#org3c3ae1d)
+    - [dabbrev&#x2013;find-all-expansions](#orgb5003af)
+    - [complete-with-action](#org986b3fe)
 
-<a id="orgc6b8fce"></a>
+<a id="org0b82fe7"></a>
 
 # dabbrev
 
 [dynamic abbrev](https://git.savannah.gnu.org/cgit/emacs.git/tree/lisp/dabbrev.el?h=fa65c044f2ebe666467166075c1507a8d0e1347f#n429)
 
-<a id="org714ff10"></a>
+<a id="org939f2f1"></a>
 
 # dabbrev-expand
 
@@ -37,7 +39,7 @@
 1.  `*` Signal an error if the current buffer is read only
 2.  `P` The raw prefix argument.
 
-<a id="orgc030599"></a>
+<a id="org638d021"></a>
 
 # The Meat: dabbrev&#x2013;search
 
@@ -119,7 +121,7 @@ three args:
 2.  reverse: t if search backward, nil for forward.
 3.  ignore-case: case-sensitivity search or not.
 
-<a id="org5111129"></a>
+<a id="orgd2fd589"></a>
 
 ## dabbrev&#x2013;abbrev-char-regexp
 
@@ -130,13 +132,13 @@ three args:
 - `pattern1` is the abbreb followed by one more allowed char.
 - `pattern2` is the abbrev followed by 1 or more allowed chars.
 
-<a id="orga233e5a"></a>
+<a id="org2c8743a"></a>
 
 ## dabbrev-limit
 
 dabbrev-limit controled the range to search, from current `point` to `(point - dabbrev-limit)` if search backward. Here the library use `save-restriction` and `narrow-to-region` pattern to avoid search beyond the region and later restore the original narrowing.
 
-<a id="org5ae32ab"></a>
+<a id="org8cc3c3b"></a>
 
 ## search
 
@@ -148,7 +150,7 @@ the search is performed by `re-search-forward` or `re-search-backward` with `pat
 4.  `(re-search-forward pattern2)` to find the end of the match.
 5.  get the string without text properties.
 
-<a id="org081dc96"></a>
+<a id="org8ea7b55"></a>
 
 ## filter matches
 
@@ -173,7 +175,7 @@ the body of the defmacro is straightforward and as expected, it loops the list a
 
 this `dabbrev-filter-elements` returns a non-empty list, i.e. truthy, set found-string to nil and continue the search, otherwise, puts `found-string` into `dabbrev--last-table` for furture filtering.
 
-<a id="orgbbeb18f"></a>
+<a id="orga9ad0ae"></a>
 
 # remember the last search
 
@@ -186,7 +188,7 @@ b/c `dabbrev-expand` offers only one candidate at a time, so to avoid repeated w
 
 and more [here](https://git.savannah.gnu.org/cgit/emacs.git/tree/lisp/dabbrev.el?h=fa65c044f2ebe666467166075c1507a8d0e1347f#n292) .
 
-<a id="orge297627"></a>
+<a id="orgf3cc5dc"></a>
 
 # search from other buffers and friend buffers
 
@@ -262,7 +264,7 @@ When current buffer fail to produce a candidate, it creates a `dabbrev--friend-b
 	 expansion)))))
 ```
 
-<a id="org8f40bdf"></a>
+<a id="org6435527"></a>
 
 # find all candidates at once.
 
@@ -289,7 +291,7 @@ dabbrev-completion command body does the following things:
 3.  setup `dabbrev--check-all-buffers` to t if arg is numerical and is 16.
 4.  call `completion-in-region`.
 
-<a id="org3b262ce"></a>
+<a id="org5800421"></a>
 
 ## completion-in-region
 
@@ -303,7 +305,7 @@ This function is defined in `minibuffer.el`.
 
 In this case, the table var is a function. so we know s - string, p - predicate, a - aciton.
 
-<a id="org0cc46c4"></a>
+<a id="orgdc67c0d"></a>
 
 ## table lambda:
 
@@ -343,9 +345,55 @@ In this case, the table var is a function. so we know s - string, p - predicate,
 
 ```
 
-<a id="org81875ad"></a>
+when action is `'metadata`, this is our chance to determine the behavior of the minibuffer candidate:
+
+- `cycle-sort-function` function to sort entries when cycling. i am not 100% sure what this does, and the doc is vague. I guess when user comes to the bottom of the match minibuffer and still tries go down, this function is trigger with the current list and the returned list is used to update the minibuffer content. In our case, it simply goes back to the head of the minibuffer and start again.
+- `category` a symbol describing what kind of text the completion function is trying to complete. This category is shown in the minibuffer so you know where this candidate is computed and offered.
+- more controls [here](https://www.gnu.org/software/emacs/manual/html_node/elisp/Programmed-Completion.html)
+
+<a id="org3c3ae1d"></a>
+
+### when action is not &rsquo;metadata
+
+we need to do real search and provide a list of candidate for minibuffer.
+
+1.  find candidates
+
+    `dabbrev--find-all-expansions` finds all candidates for user-typed substring `abbrev`.
+
+2.  case handling
+
+    the last part of the function handles case to match the user-typed substring case.
+
+    - if `dabbrev-case-replace` is falsey or `ignore-case-p` is truthy, return the candidates list as is
+    - else if user-typed substring is UPCASE, upcase the candidates list
+    - else if user-typed subsrtring is capitalized, capitalized the candidates list
+    - else downcase the candidates list.
+
+<a id="orgb5003af"></a>
+
+### dabbrev&#x2013;find-all-expansions
+
+```elisp
+(defun dabbrev--find-all-expansions (abbrev ignore-case)
+  "Return a list of all possible expansions of ABBREV.
+If IGNORE-CASE is non-nil, accept matches which differ in case."
+  (let ((all-expansions nil)
+	expansion)
+    (save-excursion
+      (goto-char (point-min))
+      (while (setq expansion (dabbrev--find-expansion abbrev -1 ignore-case))
+	(setq all-expansions (cons expansion all-expansions))))
+    all-expansions))
+```
+
+go to the beginning of the buffer, continue to call `dabbrev--find-expansion` until all matches are found and inserted in `all-expansions`.
+
+<a id="org986b3fe"></a>
 
 ### complete-with-action
+
+complete-with-action is a helper function that handle the rest of the API so code author can focus on handling metadata, [see here](https://with-emacs.com/posts/tutorials/customize-completion-at-point/).
 
 Defined in `minibuffer.el`
 
