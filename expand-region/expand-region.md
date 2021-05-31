@@ -1,25 +1,24 @@
-- [Command `er/expand-region`](#org2f39dea)
-- [`er/expand-region`](#org8c1576e)
-  - [function walkthrough](#orgb940641)
-  - [all those eval-after-load](#org0639918)
-  - [`er--expand-region-1`](#org54321e5)
-    - [er&#x2013;this-expansion-is-better](#org6203fcf)
-    - [er&#x2013;show-expansion-message](#org9dbcceb)
-    - [expand-region-smart-cursor](#org2b24957)
-    - [early exit](#orga8402cc)
-    - [er/try-expand-list](#orgf8909a1)
-- [expansion and contraction history](#org4e4f3d2)
-- [text-mode-expansions.el](#org8a15c32)
-- [subword-mode-expansion.el](#org85d5211)
-- [contraction](#orgb72f089)
+- [Command `er/expand-region`](#orgc6f8c83)
+- [`er/expand-region`](#orge639e9b)
+  - [function walkthrough](#orgb1890cb)
+  - [all those `eval-after-load`](#org9637e24)
+  - [`er--expand-region-1`](#orgda3e9b8)
+    - [er&#x2013;this-expansion-is-better](#org4811e07)
+    - [er&#x2013;show-expansion-message](#orgff4a294)
+    - [expand-region-smart-cursor](#orgf9e2184)
+    - [early exit](#orge9577a1)
+- [expansion and contraction history](#orgecc0713)
+- [text-mode-expansions.el](#orgff80d58)
+- [subword-mode-expansion.el](#orgd12c37f)
+- [contraction](#org28bec66)
 
-<a id="org2f39dea"></a>
+<a id="orgc6f8c83"></a>
 
 # Command `er/expand-region`
 
 All emacers must have used this command. [github link](https://github.com/magnars/expand-region.el)
 
-<a id="org8c1576e"></a>
+<a id="orge639e9b"></a>
 
 # `er/expand-region`
 
@@ -60,7 +59,7 @@ before calling `er/expand-region' for the first time."
 
 This is pretty much the content from `expand-region.el`.
 
-<a id="orgb940641"></a>
+<a id="orgb1890cb"></a>
 
 ## function walkthrough
 
@@ -73,15 +72,15 @@ pretty straightforward
 
 reference: [interactive codes](https://www.gnu.org/software/emacs/manual/html_node/elisp/Interactive-Codes.html#Interactive-Codes)
 
-<a id="org0639918"></a>
+<a id="org9637e24"></a>
 
-## all those eval-after-load
+## all those `eval-after-load`
 
 whenever a major mode is loaded, loads te corresponding `*-expansions` sub-package.
 
 different language has different syntax-table and semantic meanings for the same char, that&rsquo;s why there is one `*-expansions` per language.
 
-<a id="org54321e5"></a>
+<a id="orgda3e9b8"></a>
 
 ## `er--expand-region-1`
 
@@ -113,19 +112,19 @@ As the docstring points out, the key part is:
 
 In above code block, it makes a copy of `er/try-expand-list` and loop through one by one, update `best-start` and `best-end`.
 
-<a id="org6203fcf"></a>
+<a id="org4811e07"></a>
 
 ### er&#x2013;this-expansion-is-better
 
 simple arithemtic computation to find the smallest expand that&rsquo;s larger than the starting region. You can checkout the code [here](https://github.com/magnars/expand-region.el/blob/4b8322774d9c1d8b64a0049d1dbbc1e7ce80c1a0/expand-region-core.el#L135).
 
-<a id="org9dbcceb"></a>
+<a id="orgff4a294"></a>
 
 ### er&#x2013;show-expansion-message
 
 [link](https://github.com/magnars/expand-region.el/blob/4b8322774d9c1d8b64a0049d1dbbc1e7ce80c1a0/expand-region-custom.el#L118) &ldquo;Whether expand-region should show usage message.&rdquo;
 
-<a id="org2b24957"></a>
+<a id="orgf9e2184"></a>
 
 ### expand-region-smart-cursor
 
@@ -145,7 +144,7 @@ If set to nil, always place the cursor at the beginning of the region."
                  (const :tag "Standard behaviour" nil)))
 ```
 
-<a id="orga8402cc"></a>
+<a id="orge9577a1"></a>
 
 ### early exit
 
@@ -157,11 +156,7 @@ If set to nil, always place the cursor at the beginning of the region."
 
 if the expansion is already at the max and min possible, return `'early-exit'`.
 
-<a id="orgf8909a1"></a>
-
-### er/try-expand-list
-
-<a id="org4e4f3d2"></a>
+<a id="orgecc0713"></a>
 
 # expansion and contraction history
 
@@ -181,7 +176,7 @@ if the expansion is already at the max and min possible, return `'early-exit'`.
 1.  register at the beginning of expansion session to clear history when buffer content change.
 2.  register at each invocation of expansion the start and end of the current region so later we can easily and deterministically contract back to the same region.
 
-<a id="org8a15c32"></a>
+<a id="orgff80d58"></a>
 
 # text-mode-expansions.el
 
@@ -254,7 +249,7 @@ straightforward, `mark-paragraph` and &ldquo;trim&rdquo; the whitespace at the b
 
 and finally the higher level of semantic region is a page for text mode.
 
-<a id="org85d5211"></a>
+<a id="orgd12c37f"></a>
 
 # subword-mode-expansion.el
 
@@ -279,8 +274,8 @@ only invoke when `subword-mode` is on and `expand-region-subword-enabled` is tru
 
 repeated calls doens&rsquo;t grow the region.
 
-<a id="orgb72f089"></a>
+<a id="org28bec66"></a>
 
 # contraction
 
-`er/contract-region` is pretty much the oppsite of the `er/expand-region`, so i will not covert it this time.
+`er/contract-region` uses the `er/history` built by `er/expand-region`.
